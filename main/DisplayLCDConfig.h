@@ -28,7 +28,6 @@ void lcdSetup(){
 }
 
 // Function for default display (positioning of weight and stuff)
-//will autoscroll if ingredient characters exceed 16 
 void displayWeightOnLCD(String header, int weight){
   lcd.setCursor(0, 0);
   lcd.print(header);
@@ -39,8 +38,25 @@ void displayWeightOnLCD(String header, int weight){
   lcd.print(weight); 
   lcd.setCursor(15,1);
   lcd.print("g");
-  delay(50);
+  //delay(50);
 }
+
+// Function for display ingredient only, auto new line once space is detected 
+void displayIngredientOnLCD(String header){
+  lcd.clear(); //clear screen 
+  lcd.setCursor(0, 0);
+  int space_pos = header.indexOf(" ");//find position of space in ingredient name. Potential bug here whereby if users add " " infront or " " behind.
+  if (space_pos != -1){ //if -1 means space doesn't exist. 
+    lcd.print(header.substring(0, space_pos));
+    lcd.setCursor(0,1);
+    lcd.print(header.substring(space_pos+1, header.length()));
+  }
+  else{
+    lcd.print(header);
+  }
+  delay(1000);//screentime 
+}
+
 //Function for displaying weight only, no ingredient 
 void displayWeightOnLCDonly(int weight){
   lcd.setCursor(0, 1);
@@ -50,7 +66,7 @@ void displayWeightOnLCDonly(int weight){
   lcd.print(weight); 
   lcd.setCursor(15,1);
   lcd.print("g");
-  delay(100);
+  delay(50);
 }
 
 // Function for displaying confirmation screen
@@ -60,8 +76,25 @@ void displayConfirmRecipeOnLCD(String text){
     lcd.scrollDisplayLeft();
   }
   lcd.print(text);
-  delay(100);
 }
 
+//Function during MQTT phase 
+void displayPickReminder(){
+  lcd.clear();//clear screen
+  lcd.setCursor(0,0);
+  lcd.print("Pick Item");
+  lcd.setCursor(0,1);
+  lcd.print("Follow Light");
+  delay(3000);//time for picking
+  lcd.clear();//clear screen for next prompt 
+}
+
+//Function that reminds users to tare at the start before weighing 
+void displayTareReminder(){
+  lcd.setCursor(0,0);
+  lcd.print("Place Bowl");//possible implementation in future: bowl detection
+  lcd.setCursor(0,1);
+  lcd.print("Press TARE");
+}
 
 #endif

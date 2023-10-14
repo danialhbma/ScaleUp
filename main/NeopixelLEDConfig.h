@@ -40,4 +40,9 @@ void ledChange(int weight, int offset){
     led_colour(0 , 255, 0);//green led 
   }
 }
+//Function clear led, off led state 
+void clearled(){
+  pixels.clear();
+  pixels.show();
+}
 #endif

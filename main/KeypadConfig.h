@@ -12,7 +12,7 @@ char KEYS [ROWS] [COLS] = {
   {'7', '8', '9', 'C'},
   {'*', '0', '#', 'D'}
 };
-byte ROWPINS[ROWS] = {19,18,5,17}; 
-byte COLPINS[COLS] = {16,4,0,2};
+byte ROWPINS[ROWS] = {2,0,4,16}; 
+byte COLPINS[COLS] = {17,5,18,19};
 
 #endif

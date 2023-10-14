@@ -24,6 +24,7 @@
 #include "Recipe.h"
 #include "DisplayRecipeInfo.h"
 #include "MQTTConfig.h" 
+#include "AudioConfig.h"
 
 // states for weighing scale
 enum States { RECIPE_SELECTION, CONFIRMATION, WEIGHING };
@@ -52,7 +53,16 @@ Recipe desiredRecipe; // stores selected recipe object
 String ingredient;
 int desiredWeight;
 
+//accurate timings setup 
+unsigned long currentTime1 = 0;//resets after 50 days 
+unsigned long currentTime2 = 0;//resets after 50 days 
+
+//bools 
 bool canGetNextIngredient = false; // indicate if users can move on to the next ingredient in the recipe
+bool tarebuttonpressed = false; //indicate if users tared once. If so, tare reminder audio wont be played 
+bool pickitemclear = false; //indicate if item is picked
+bool gettime = false;// for taring reminder portion 
+bool lcdClearOnce = false; //for refreshing screen. 
 
 WiFiClientSecure espClient;
 PubSubClient mqttClient(espClient); // Declare the MQTT client globally
@@ -61,7 +71,6 @@ String previousIngredient = ""; // Add a flag to track if MQTT has been initiali
 
 void setup() {
   Serial.begin(115200);
-  
   //Code to slow down MCU 
   rtc_cpu_freq_config_t config;
   rtc_clk_cpu_freq_get_config(&config);
@@ -73,10 +82,11 @@ void setup() {
   scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);          
   scale.set_scale(CALIBRATION_FACTOR); 
   scale.tare(); // reset the scale to 0
-
-  connectToWifi();
-  lcdSetup();
   neopixelLEDSetup();
+  audioSetup();
+  lcdSetup();
+  lcd.print("Setting Up...");
+  connectToWifi();
 
   /* 
       START OF MQTT SETUP SECTION 
@@ -119,9 +129,8 @@ void setup() {
   //run once to store some value so that first loop will have oldWeight variable
   weight = scale.get_units();
   oldWeight = weight;
-
   Serial.println("Initialisation completed");
-
+  lcd.clear();
   // after setup, set to recipe selection (default) state
   currentState = RECIPE_SELECTION;
 }
@@ -130,7 +139,12 @@ void setup() {
 void loop() {
   switch (currentState) {
     case RECIPE_SELECTION:
-    {
+    { 
+      if (lcdClearOnce == false){
+        lcd.clear();
+        lcdClearOnce = true;
+      }
+
       // when first on recipe selection screen, print prompt
       if (selectedRecipeNum == ""){
         // Serial.println("Select recipe");
@@ -143,6 +157,9 @@ void loop() {
       if (recipeSelectionKey != NO_KEY){ //no_key will be display when no buttons is pressed 
         recipeSelectionStateButtonInputs(recipeSelectionKey);
       };
+
+      currentTime1 = millis();//intitalise before confirmation 
+
       break;
     }
       
@@ -151,19 +168,21 @@ void loop() {
     {
       Serial.println ("Confirm Recipe? " + desiredRecipe.getRecipeName());
       //on autoscroll if necessary. if put "confirm selection", lcd format will have problem.maybe because quota is exceeded?
-      displayConfirmRecipeOnLCD(("Confirm Recipe? "+ desiredRecipe.getRecipeName()));
-      
+      if (millis()>= currentTime1 + 500){
+        currentTime1 += 500;
+        displayConfirmRecipeOnLCD(("Confirm Recipe? "+ desiredRecipe.getRecipeName()));
+      }
       char confirmationKey = kpd.getKey();
       if (confirmationKey != NO_KEY){
         //off autoscroll of text when button is detected 
-        lcd.noAutoscroll();
         confirmationStateButtonInputs(confirmationKey);
+        lcd.noAutoscroll();
       }
       break;
     }
 
     case WEIGHING:
-    {
+    { 
       // Get the selected ingredient and weight
       ingredient = desiredRecipe.getCurrentIngredient();
       desiredWeight = desiredRecipe.getQuantityOfCurrentIngredient();
@@ -197,65 +216,125 @@ void loop() {
       Serial.println ("Ingredient: " + ingredient);
       Serial.println ("Desired Weight: ");
       Serial.print(desiredWeight);
-    
+      
+      if (pickitemclear == false && tarebuttonpressed == false){
+        //Display ingredient to first during change of ingredient 
+        displayIngredientOnLCD(ingredient);
+        //MQTT Phase. Display pick item reminder 
+        displayPickReminder();//bug: cannot home in this stage
+        pickitemclear = true; //pick item done once 
+      }
+
+      //Back to weighing phase. Debugging purposes as well to monitor weight changes during taring 
+      //to optimise this part or resolve using bigger lcd panel so scrolling is not required. 
       // get weight from weighing scale and find diff in weights  
       Serial.println("measured weight: ");
       Serial.print(weight);
 
-      if (ingredient.length()<16){
+      //Taring reminder. Only moves on to next when tare button is pressed. 
+      Serial.println("Taring stage");
+      
+      if (tarebuttonpressed == false && pickitemclear == true){
         char weighingKey = kpd.getKey();
+        displayTareReminder();
+        if (gettime == false){
+          playaudio_once(14);//play audio 
+          gettime = true;
+          currentTime2 = millis();//intitalise before weighing 
+        }
+
+        if (millis() >= 3000 + currentTime2){//loop audio for 3s
+          currentTime2 += 3000;//update current Time 
+          //audio plays if bool is false 
+          playaudio_once(14);//play audio after 1s 
+        }
         if (weighingKey != NO_KEY){
           weighingStateButtonInputs(weighingKey);
         }
-        weight = scale.get_units();
-        weight = calculateWeightDiff(weight, desiredWeight);
-        displayWeightOnLCD (ingredient, weight);
-        if (weight != oldWeight){ //code over here tries to minimise updating time
-          oldWeight = weight; // update old weight to new weight if reading is different
-          // change LED colours based on diff in weight
-          ledChange(weight, offset);
-          lcd.clear();
-          displayWeightOnLCD (ingredient, weight);
-          delay(100);
-        }
-        //if detect correct weight 
-        if ((weight >- 1 * offset) && weight < offset){
-          canGetNextIngredient = true;
-        }
       }
-      else{
-      //for case ingredient string too long, activate scroll.btw each update recheck for weight changes  
-        for (int i=0; i<(ingredient.length()); i++){
-          char weighingKey = kpd.getKey();
+
+      //if tare button is pressed then weighing display appears 
+      if (tarebuttonpressed == true && pickitemclear == true){
+        Serial.println("Weighing stage");
+        if (ingredient.length()<17){
+          //activate weighing state button inputs 
+          char weighingKey = kpd.getKey();//need to place this regularly in loop so that it can interrupt in time 
           if (weighingKey != NO_KEY){
             weighingStateButtonInputs(weighingKey);
           }
           weight = scale.get_units();
           weight = calculateWeightDiff(weight, desiredWeight);
-          lcd.clear();//to clear screen to update changes 
-          lcd.setCursor(0,0);//reset cursor to top left of screen
-          lcd.print(ingredient.substring(i, ingredient.length()));
-          if (weight != oldWeight){ //update weight part if weight is different
-            oldWeight = weight; // update old weight to new weight if reading is different 
-          } 
-          displayWeightOnLCDonly(weight);//updateweight
-          ledChange(weight,offset);
+
+          displayWeightOnLCD (ingredient, weight);
+
+          if (weight != oldWeight){ //code over here tries to minimise updating time
+            oldWeight = weight; // update old weight to new weight if reading is different
+            // change LED colours based on diff in weight
+            audioChange(weight,offset);
+            ledChange(weight, offset);
+            lcd.clear();
+            displayWeightOnLCD (ingredient, weight);
+          }
+
+          //activate weighing state button inputs 
+          weighingKey = kpd.getKey();//need to place this regularly in loop so that it can interrupt in time 
+          if (weighingKey != NO_KEY){
+            weighingStateButtonInputs(weighingKey);
+          }
+
           //if detect correct weight 
           if ((weight >- 1 * offset) && weight < offset){
             canGetNextIngredient = true;
-            break;
           }
+        }
+       
+        else{
+        //for case ingredient string too long, activate scroll.btw each update recheck for weight changes  
+          for (int i=0; i<(ingredient.length()); i++){
+            lcd.clear();//to clear screen to update changes 
+            lcd.setCursor(0,0);//reset cursor to top left of screen
+            lcd.print(ingredient.substring(i, ingredient.length()));
+            weight = scale.get_units();
+            weight = calculateWeightDiff(weight, desiredWeight);
+            displayWeightOnLCDonly(weight);//updateweight
+            if (weight != oldWeight){ //update weight part if weight is different
+              oldWeight = weight; // update old weight to new weight if reading is different 
+              audioChange(weight,offset);//weight prompts will only play once tare button is pressed. Can be distracting if activated earlier.  
+              ledChange(weight,offset);
+            } 
+            //activate weighing state button inputs 
+            char weighingKey = kpd.getKey();//need to place this regularly in loop so that it can interrupt in time 
+            if (weighingKey != NO_KEY){
+              weighingStateButtonInputs(weighingKey);
+            }
+      
+            //if detect correct weight 
+            if ((weight >- 1 * offset) && weight < offset){
+              canGetNextIngredient = true;
+              break;//break out of for loop if weight is reached 
+            }
+            
+            delay(150);//millis not working somehow 
+ 
+          }
+          //activate weighing state button inputs 
+            char weighingKey = kpd.getKey();//need to place this regularly in loop so that it can interrupt in time 
+            if (weighingKey != NO_KEY){
+              weighingStateButtonInputs(weighingKey);
+            }
         }
       }
       break;
     }
+
     default:
       break;
+
   }
 }
 
 // Function for keypad buttons during recipe selection state
-void recipeSelectionStateButtonInputs(char key){ 
+void recipeSelectionStateButtonInputs(char key){
   Serial.println(key);
   switch (key) {
     // button B - confirm recipe selection
@@ -267,16 +346,19 @@ void recipeSelectionStateButtonInputs(char key){
         // check if recipe number is valid
         // if valid, proceed to confirmation state 
         try {
-          desiredRecipe = Recipe::getByRecipeNo(selectedRecipeNum.toInt(), recipeList); 
+          desiredRecipe = Recipe::getByRecipeNo(selectedRecipeNum.toInt(), recipeList);
+          lcd.clear(); 
           currentState = CONFIRMATION;
         }
         
         // if recipe number given is not in the list of recipes, have users select recipe again
         catch (const std::exception& e) {
+          lcd.clear();
+          lcd.setCursor(0,0);
           lcd.print(e.what());
+          delay(300);
+          lcd.clear();
           Serial.println (e.what());
-          delay(500);
-          
           selectedRecipeNum = "";
         }
       }
@@ -353,6 +435,7 @@ void confirmationStateButtonInputs(char key){
     // button B - confirm selection
     case 'B': {
       Serial.println ("Confirm selection...");
+      lcd.clear();
       currentState = WEIGHING;            // switch to weighing state
       break;
     }
@@ -362,6 +445,7 @@ void confirmationStateButtonInputs(char key){
       Serial.println ("Cancel selection...");
       // reset selectedRecipeNum
       selectedRecipeNum = "";      
+      lcd.clear();
       currentState = RECIPE_SELECTION;   // go back to recipe selection state 
       break;
     }
@@ -376,50 +460,71 @@ void weighingStateButtonInputs(char key){
   switch (key) {
     // button A - TARING
     case 'A': { 
+      tarebuttonpressed = true;
+      //audio bool becomes true 
       lcd.clear();
       led_colour(0,0,255); //blue light to inform users that item is tared 
       Serial.println ("Taring......");
       lcd.setCursor(0, 0);   // set the cursor to column 0, line 0 
       lcd.print("Taring......");
       scale.tare(); 
-      delay(150);//taring timing
-      led_colour(255,50,0);
+      delay(100);
+      clearled();
       lcd.clear();//clear screen for taring completed 
       break;
     }
 
     // button # - go next ingredient
     case '#': {
+      //audio bool reset to false 
       Serial.println("Going next ingredient...");
       Serial.println(canGetNextIngredient);
       // if measurement is correct, go to next ingredient
       if (canGetNextIngredient == true) {
         // if there's no more ingredients, weighing completed and return to recipe selection
         if (desiredRecipe.isLastIngredient()){
-          lcd.clear();
-          lcd.setCursor(0, 0);
           Serial.println ("Weighing Complete!");
+          clearled();
+          lcd.clear(); 
+          lcd.setCursor(0, 0);
+          lcd.print("Weighing");
+          lcd.setCursor(0, 1);
           lcd.print("Completed!");
           delay(500);
+          tarebuttonpressed = false;
+          pickitemclear = false;
+          gettime = false;
+          lcdClearOnce = false;
+          selectedRecipeNum = "";  
           currentState = RECIPE_SELECTION;
+
         } else {
-          // if there's still ingredients left, go to next ingredient 
+          // if there's still ingredients left, go to next ingredient
+          clearled(); 
           desiredRecipe.incrementIngredientIndex();
           canGetNextIngredient = false;
+          tarebuttonpressed = false;
+          pickitemclear = false;
+          gettime = false;
         }
       }
       break;
     }
+
     /* 
        button * - go back to home/recipe selection state
        reset selectedRecipeNum and go back to recipe selection state
        resets the lcd & led as well
     */
     case '*': {
+      clearled();
       Serial.println ("Back to home...");
       selectedRecipeNum = "";
-      lcd.clear();
-      led_colour(0,0,0);
+      canGetNextIngredient = false;
+      tarebuttonpressed = false;
+      pickitemclear = false;
+      gettime = false;
+      lcdClearOnce = false;
       currentState = RECIPE_SELECTION;
       break;
     }
