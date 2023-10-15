@@ -18,6 +18,8 @@ sheets > weighing scale > HiveMQ > inventory leds
 - NeoPixel 12 LED Ring x 1
 - 16x2 LCD Panel (Green/Blue backlight) x 1
 - I2C Adapter for LCD x 1
+- Continental MP3 module x 1
+- Speaker 8 Ohms  0.5 W X 1
 - Jumper Wires
 - Header Pins (if vero board prototyping)
 <br><br>
@@ -54,7 +56,7 @@ Go to "File" > "Open."
 Navigate to the directory where you cloned the GitHub repository and select the Arduino sketch file (main.ino). 
 <br><br>
 ### Step 4: Configure ESP32 Board Settings
-Go to "Tools" > "Board" and select your ESP32 board (e.g., "ESP32 Dev Module","NodeMCU-32S").
+Go to "Tools" > "Board" and select your ESP32 board (e.g., "ESP32 Dev Module", "NodeMCU-32S").
 Choose the correct "Port" (the USB COM port where your ESP32 is connected).
 <br><br>
 ### Step 5: Installing the required dependencies
@@ -84,19 +86,19 @@ _Source:_ [ThePiHut](https://thepihut.com/blogs/raspberry-pi-tutorials/27968772-
 <br><br>
 ### Load Cell Calibration
 To use the code in the "main" file, you will be required to determine your calibration factor. This calibration factor serves to scale your HX711 readings to accurate weight. Use standard weights for optimum results.  
-More information on determining the calibration factor can be found in https://randomnerdtutorials.com/esp32-load-cell-hx711/
+More information on determining the calibration factor can be found at https://randomnerdtutorials.com/esp32-load-cell-hx711/
 <br><br>
 ### Assembling the Circuit  
 Assemble the circuit following the schematics below. To connect between components, make use of jumper wires and header pins. 
 ![Weighing_Circuit](Images/Schematics_WeighingScale.png)  
 ![Inventory_Circuit](Images/Schematics_Inventory.png)
 
-After testing the circuit with the code, you can solder the components on a veroboard. Veroboard prototyping prevents loose connections and allows the circuit to be placed within the 3D printed housing.   
+After testing the circuit with the code, you can solder the components on a veroboard. Veroboard prototyping prevents loose connections and allows the circuit to be placed within the 3D-printed housing.   
 
 ![Vero_Circuit](Images/Vero.jpg) 
 <br><br>
 ## Weighing Scale System
-The Weighing Scale System is the portion of the project that contains the logic to get the weight of the measured ingredient, ensure it matches the desired weight from the recipe, and lights up the LED according to the measured weight. All recipe information is linked to a Google Sheet and retrieved using a Google Sheet API key.
+The Weighing Scale System is the portion of the project that contains the logic to get the weight of the measured ingredient, ensure it matches the desired weight from the recipe, and light up the LED according to the measured weight. All recipe information is linked to a Google Sheet and retrieved using a Google Sheet API key.
 
 If the measured weight is below the desired weight, the LED will turn orange:
 ![Below Desired Weight](https://github.com/danialhbma/MINDS-Baking/assets/91550661/e3b8c4ff-53cf-4c99-9881-4b92a355a239)
@@ -115,14 +117,14 @@ The ESP32 in the Weighing Scale System connects to the provided Wi-Fi endpoint t
 Users input their desired recipe number and press "Confirm" to select a recipe, which will bring them to the Confirmation State.
 
 **3. Confirmation State**
-The weighing scale will display the desired recipe name on the LCD panel. Users can either confirm their selection to proceed to Weighing State or cancel to return to the Recipe Selection State.
+The weighing scale will display the desired recipe name on the LCD panel. Users can either confirm their selection to proceed to the Weighing State or cancel to return to the Recipe Selection State.
 
 **4. Weighing State**
-Upon confirming their selection, the scale will enter the Weighing State. It will retrieve the desired recipe from the list of stored recipes in the Recipe struct. The ingredient name will be displayed on the LCD panel, and the Inventory Picking System will light up the corresponding LED for the ingredient. After users have picked the ingredient, placed their bowl and tared it's weight, they can begin weighing the selected ingredient.
+Upon confirming their selection, the scale will enter the Weighing State. It will retrieve the desired recipe from the list of stored recipes in the Recipe struct. The ingredient name will be displayed on the LCD panel, and the Inventory Picking System will light up the corresponding LED for the ingredient. After users have picked the ingredient, placed their bowl and tared its weight, they can begin weighing the selected ingredient.
 
-The LED will initially be orange, as the measured weight is below the desired weight. However, if the measured weight exceeds that of the desired weight, the LED will turn red. The LCD panel will display the weight offset between the desired weight and measured weight (desired weight - measured weight) to indicate how many more grams of the ingredient needs to be added. 
+The LED will initially be orange, as the measured weight is below the desired weight. However, if the measured weight exceeds that of the desired weight, the LED will turn red. The LCD panel will display the weight offset between the desired weight and measured weight (desired weight - measured weight) to indicate how many more grams of the ingredient need to be added. 
 
-When the desired weight is reached, the LED will turn green. Users can press the "Next" button to proceed to weighing the next ingredient and repeat the process until there are no more ingredients to be weighed.
+When the desired weight is reached, the LED will turn green. Users can press the "Next" button to proceed to weigh the next ingredient and repeat the process until there are no more ingredients to be weighed.
 
 <br><br>
 ## Inventory  Picking System
@@ -144,15 +146,14 @@ More comments and instructions on the expandability of the inventory system can 
 <br><br>
 ##  Future work 
 ### Software
-* Optimisation of code to improve response timing of components E.g Resolve lag in MQTT inventory system
-* Improve on traffic light system. E.g Using of a progress bar to indicate weighing progress, changing of led colours to create more contrast between stages
+* Optimisation of code to improve response timing of components E.g Resolve lag in the MQTT inventory system
+* Improve on traffic light system. E.g Using a progress bar to indicate weighing progress, changing led colours to create more contrast between stages
 ### Hardware 
-* Implementing a speaker to convey auditory cues to clients who has colour blindness
-* Adding of "offset" input in google sheets to provide another degree of customisation without the trainers needing to edit the code. The "offset" input will allows trainers to vary the precision of the weighing scale according to their needs
+* Adding "offset" input in Google Sheets to provide another degree of customisation without the trainers needing to edit the code. The "offset" input will allow trainers to vary the precision of the weighing scale according to their needs
 * Proceed to PCB prototyping
-* Redesigning of hardware for inventory light system such that it is fitted for large scale application (I.e Used for more than 3 ingredients). Look into mechanical/automation if required.
+* Redesigning of hardware for inventory light system such that it is fitted for large-scale application (i.e. Used for more than 3 ingredients). Look into mechanical/automation if required.
 * Replace USB power source with rechargeable battery/direct plug
 ### Aesthetics and Usability 
-* Redesigning of weighing scale casing of weighing scale for modularity and ease of maintanence
+* Redesigning of weighing scale casing of weighing scale for modularity and ease of maintenance
 * Design a mount for lights to be mounted onto shelves with ingredients 
-* Reduce number of buttons to prevent confusion 
+* Reduce the number of buttons to prevent confusion 
