@@ -4,6 +4,7 @@
 #ifndef WIFI_CONFIG_H
 #define WIFI_CONFIG_H
 
+// replace with your own wifi ssid and password before running
 char* WIFI_SSID = "WIFI_SSID";
 char* WIFI_PWD = "WIFI_PWD";
 
