@@ -29,6 +29,62 @@ sheets > weighing scale > HiveMQ > inventory leds
 - Jumper Wires
 - Header Pins (if vero board prototyping) 
 <br><br>
+
+## Setup: Getting Google Sheets API
+This project uses a Google API Key to access Google Sheets where the  recipes are stored.
+
+### Step 1: Create Recipes File
+Create a Google Sheets file in your Google Drive using the following format:
+
+![Recipe File Format](https://github.com/danialhbma/ScaleUp/assets/91550661/2ca8120a-64cb-4830-bc70-b74c08a6da4d)
+
+
+### Step 2: Create Google Cloud Platform (GCP) Project
+Using the same email account as in Step 1, create a Google Cloud Platform (GCP) account. If you already have a GCP account, login to it.
+
+Create a new GCP project.
+
+![Create GCP Project](https://github.com/danialhbma/ScaleUp/assets/91550661/8e66b705-d7c9-448f-8060-4a6f0600b399)
+
+### Step 3: Enable Google Sheets API
+Open the Navigation Menu by clicking the icon in the top left corner. Select APIs & Services > Enabled APIs & Services.
+
+![Enabled APIs & Services Page](https://github.com/danialhbma/ScaleUp/assets/91550661/b0e92721-27c1-4bba-89ba-9f6a8b150d4f)
+
+
+Click Enable APIs and Services.
+
+![Enable API Button](https://github.com/danialhbma/ScaleUp/assets/91550661/37d09b45-a852-4d42-8bb6-77929162879d)
+
+
+Search for Google Sheets API from the list of available APIs and select it.
+
+![Google Sheets API](https://github.com/danialhbma/ScaleUp/assets/91550661/60f6bbee-69d9-4c21-a910-4119fd030138)
+
+
+Click Enable.
+
+![Enable Google Sheets API](https://github.com/danialhbma/ScaleUp/assets/91550661/b4019d97-ebb1-47a1-b420-f608f4b532d9)
+
+### Step 4: Create Google Sheets API Key
+Select Credentials from the side menu.
+
+![Select Credentials](https://github.com/danialhbma/ScaleUp/assets/91550661/e1467cf4-f966-4d92-add3-9ff6ad4a8190)
+
+Click Create Credentials.
+
+![Create Credentials](https://github.com/danialhbma/ScaleUp/assets/91550661/92747679-a747-4e53-add7-017dd709d66d)
+
+An API Key with a unique string is created and shown on your screen. This key is to be kept confidential.
+You should see your newly created API key as shown below. Click on it to set security restrictions.
+
+![API Key](https://github.com/danialhbma/ScaleUp/assets/91550661/4dfc13f3-2e1a-4b9e-a80e-c81c5b32cb9b)
+
+Under API restrictions, click Restrict Key and select Google Sheets API from the list.
+
+![API Restrictions](https://github.com/danialhbma/ScaleUp/assets/91550661/dc494c4d-730c-4cf6-b12c-6396c8d2db83)
+
+
 ## Setup: Getting Started with Arduino IDE and ESP32
 ### Step 1: Download and Install Arduino IDE
 Visit the Arduino IDE download page: https://www.arduino.cc/en/software
